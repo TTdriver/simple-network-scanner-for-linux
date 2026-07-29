@@ -20,7 +20,7 @@ from typing import Any
 class NmapGUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Simple Network Scanner")
+        self.root.title("Simple Network Scanner  v1.0.0")
         self.root.geometry("1100x720")
         self.root.minsize(850, 540)
 
@@ -29,6 +29,7 @@ class NmapGUI:
         self.current_xml_path: str | None = None
         self.current_temp_dir: str | None = None
         self.last_completed_scan_type = "Device Discovery"
+        self.local_host_ip = ""
 
         self.scan_started_at: float | None = None
         self.activity_job: str | None = None
@@ -974,6 +975,10 @@ class NmapGUI:
         self,
         _event: tk.Event | None = None,
     ) -> None:
+        # Results belong to the scan type that produced them.
+        # Clear them before changing the visible columns or active tab.
+        self.clear_results()
+
         self.update_scan_description()
         self.update_device_columns(
             self.scan_type_var.get()
@@ -987,6 +992,10 @@ class NmapGUI:
             self.notebook.select(
                 self.ports_tab
             )
+
+        self.status_var.set(
+            "Ready"
+        )
 
     def detect_local_network(self) -> None:
         if self.process is not None:
@@ -1495,6 +1504,14 @@ class NmapGUI:
                 mac_address, vendor = self.get_mac_and_vendor(host)
                 latency = self.get_host_latency(host)
 
+                if (
+                    self.local_host_ip
+                    and ip_address == self.local_host_ip
+                ):
+                    mac_address = "Host device"
+                    vendor = "This computer"
+                    latency = "Local host"
+
                 devices.append(
                     {
                         "ip_address": ip_address,
@@ -1768,6 +1785,7 @@ class NmapGUI:
         network = network_data["network"]
 
         self.target_var.set(network)
+        self.local_host_ip = address
 
         self.interface_var.set(
             f"Interface: {interface}   "
