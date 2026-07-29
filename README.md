@@ -11,24 +11,57 @@ A lightweight Linux graphical interface for basic network discovery and port sca
 - Light and dark modes
 - Simple interface intended for home-lab users
 
+## Downloading the application
+
+1. Open this project on GitHub.
+2. Click the green **Code** button.
+3. Click **Download ZIP**.
+4. Open your Downloads folder.
+5. Extract the ZIP file.
+6. Open the extracted folder.
+
+You can also extract it from a terminal:
+
+```bash
+cd ~/Downloads
+unzip simple-network-scanner-for-linux-main.zip
+cd simple-network-scanner-for-linux-main
+```
+
 ## Requirements
 
-Install the required system packages on Debian, Ubuntu, or Zorin OS:
+This application depends on **Nmap** to perform network scans. Nmap is not included with this project and must be installed separately.
+
+On Debian, Ubuntu, Zorin OS, Linux Mint, and other Debian-based distributions, install the required packages with:
 
 ```bash
 sudo apt update
-sudo apt install python3 python3-tk nmap iproute2 policykit-1
+sudo apt install python3 python3-tk nmap iproute2 policykit-1 unzip
 ```
 
-No pip packages are required.
+Verify that Nmap is installed:
 
-## Running
+```bash
+nmap --version
+```
+
+If Nmap is installed correctly, the command will display the installed Nmap version.
+
+No pip packages are required. The application uses only Python standard-library modules.
+
+## Running the application
+
+From inside the extracted application folder, right-click an empty area and choose **Open in Terminal**, then run:
 
 ```bash
 python3 simple-network-scanner.py
 ```
 
-Some scan types may require elevated privileges. The application may use `pkexec` when needed.
+Some scan types may require elevated privileges. When needed, the application may use `pkexec` and ask for your Linux password.
+
+## Updating the application
+
+Download the newest ZIP file from GitHub and replace the old application folder.
 
 ## Nmap notice
 
