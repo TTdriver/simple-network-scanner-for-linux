@@ -1,5 +1,7 @@
 # Simple Network Scanner for Linux
 
+Latest V1.0.0
+
 A lightweight Linux graphical interface for basic network discovery and port scanning using a user-installed copy of Nmap.
 
 <img width="1103" height="711" alt="image" src="https://github.com/user-attachments/assets/bf0ece3e-00f4-43f9-b994-4a86cf22ce0d" />
