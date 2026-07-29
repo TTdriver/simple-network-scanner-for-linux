@@ -62,6 +62,9 @@ python3 simple-network-scanner.py
 
 Some scan types may require elevated privileges. When needed, the application may use `pkexec` and ask for your Linux password.
 
+
+Alternatively, copying the simple-network-scanner.py file to your desktop, or another location and then right clicking the file and choosing **Run as Application** will open the application. (This has only been tested to work on Zorin OS at this time)
+
 ## Updating the application
 
 Download the newest ZIP file from GitHub and replace the old application folder.
