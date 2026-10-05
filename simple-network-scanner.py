@@ -6,6 +6,7 @@ import ipaddress
 import json
 import os
 import queue
+import signal
 import shutil
 import subprocess
 import tempfile
@@ -25,6 +26,8 @@ class NmapGUI:
         self.root.minsize(850, 540)
 
         self.process: subprocess.Popen[str] | None = None
+        self.scan_running = False
+        self.stop_requested = threading.Event()
         self.output_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.current_xml_path: str | None = None
         self.current_temp_dir: str | None = None
@@ -47,14 +50,14 @@ class NmapGUI:
         self.scan_description_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Ready")
         self.result_count_var = tk.StringVar(
-            value="0 devices found"
+            value="Start a scan to discover devices"
         )
         self.dark_mode_var = tk.BooleanVar(value=False)
         self.style = ttk.Style(self.root)
 
         self.scan_options = {
             "Device Discovery": ["-sn"],
-            "Device Discovery w/MAC": ["-sn"],
+            "Device Discovery with MAC Addresses": ["-sn"],
             "Quick Port Scan": ["-T4", "-F"],
             "Standard Port Scan": ["-T4"],
         }
@@ -63,7 +66,7 @@ class NmapGUI:
             "Device Discovery": (
                 "Finds active devices. Does not request administrator access."
             ),
-            "Device Discovery w/MAC": (
+            "Device Discovery with MAC Addresses": (
                 "Finds devices plus local MAC addresses and vendors. Requires administrator access."
             ),
             "Quick Port Scan": (
@@ -109,10 +112,8 @@ class NmapGUI:
         self.build_results_section(main_frame)
         self.build_status_section(main_frame)
 
-        self.root.bind(
-            "<Control-c>",
-            lambda _event: self.copy_selected_ip(),
-        )
+        for tree in (self.device_tree, self.port_tree):
+            tree.bind("<Control-c>", lambda _event: self.copy_selected_ip())
 
         self.target_entry.focus()
 
@@ -208,7 +209,7 @@ class NmapGUI:
             textvariable=self.scan_type_var,
             values=list(self.scan_options.keys()),
             state="readonly",
-            width=25,
+            width=34,
         )
         self.scan_type_combo.grid(
             row=0,
@@ -226,6 +227,7 @@ class NmapGUI:
             textvariable=self.scan_description_var,
             anchor=tk.W,
             justify=tk.LEFT,
+            wraplength=740,
         )
         description_label.grid(
             row=1,
@@ -239,14 +241,17 @@ class NmapGUI:
             controls_frame
         )
         button_frame.grid(
-            row=0,
-            column=3,
-            sticky=tk.E,
+            row=2,
+            column=0,
+            columnspan=4,
+            sticky=tk.W,
+            pady=(10, 0),
         )
 
         self.scan_button = ttk.Button(
             button_frame,
-            text="Start",
+            text="Start Scan",
+            style="Accent.TButton",
             command=self.start_scan,
         )
         self.scan_button.pack(
@@ -413,6 +418,9 @@ class NmapGUI:
             }
 
         self.root.configure(background=colors["background"])
+        self.style.configure("Accent.TButton", background=colors["selected"], foreground="#ffffff", padding=(12, 5))
+        self.style.configure("Treeview", rowheight=28)
+        self.style.configure("Treeview.Heading", font=("Sans", 10, "bold"))
 
         self.style.configure(
             ".",
@@ -668,8 +676,13 @@ class NmapGUI:
             command=self.device_tree.yview,
         )
 
+        horizontal_scrollbar = ttk.Scrollbar(
+            table_frame, orient=tk.HORIZONTAL, command=self.device_tree.xview,
+        )
+        horizontal_scrollbar.grid(row=1, column=0, sticky="ew")
         self.device_tree.configure(
             yscrollcommand=vertical_scrollbar.set,
+            xscrollcommand=horizontal_scrollbar.set,
         )
 
         self.device_tree.grid(
@@ -809,8 +822,13 @@ class NmapGUI:
             command=self.port_tree.yview,
         )
 
+        horizontal_scrollbar = ttk.Scrollbar(
+            table_frame, orient=tk.HORIZONTAL, command=self.port_tree.xview,
+        )
+        horizontal_scrollbar.grid(row=1, column=0, sticky="ew")
         self.port_tree.configure(
             yscrollcommand=vertical_scrollbar.set,
+            xscrollcommand=horizontal_scrollbar.set,
         )
 
         self.port_tree.grid(
@@ -877,14 +895,14 @@ class NmapGUI:
     def is_device_discovery(scan_type: str) -> bool:
         return scan_type in {
             "Device Discovery",
-            "Device Discovery w/MAC",
+            "Device Discovery with MAC Addresses",
         }
 
     def update_device_columns(
         self,
         scan_type: str,
     ) -> None:
-        if scan_type == "Device Discovery w/MAC":
+        if scan_type == "Device Discovery with MAC Addresses":
             self.device_tree.configure(
                 displaycolumns=(
                     "ip_address",
@@ -975,14 +993,9 @@ class NmapGUI:
         self,
         _event: tk.Event | None = None,
     ) -> None:
-        # Results belong to the scan type that produced them.
-        # Clear them before changing the visible columns or active tab.
-        self.clear_results()
-
         self.update_scan_description()
-        self.update_device_columns(
-            self.scan_type_var.get()
-        )
+        if not self.device_tree.get_children():
+            self.update_device_columns(self.scan_type_var.get())
 
         if self.is_device_discovery(self.scan_type_var.get()):
             self.notebook.select(
@@ -998,7 +1011,7 @@ class NmapGUI:
         )
 
     def detect_local_network(self) -> None:
-        if self.process is not None:
+        if self.scan_running:
             return
 
         self.interface_var.set(
@@ -1186,7 +1199,7 @@ class NmapGUI:
         )
 
     def start_scan(self) -> None:
-        if self.process is not None:
+        if self.scan_running:
             messagebox.showinfo(
                 "Scan Running",
                 "A scan is already running.",
@@ -1242,7 +1255,7 @@ class NmapGUI:
             target,
         ]
 
-        if scan_type == "Device Discovery w/MAC":
+        if scan_type == "Device Discovery with MAC Addresses":
             if os.geteuid() == 0:
                 command = nmap_command
             elif shutil.which("pkexec") is not None:
@@ -1251,13 +1264,15 @@ class NmapGUI:
                 self.cleanup_temp_scan_files()
                 messagebox.showerror(
                     "Administrator Access Required",
-                    "Device Discovery w/MAC requires administrator access.\n\n"
+                    "Device Discovery with MAC Addresses requires administrator access.\n\n"
                     "Install PolicyKit/pkexec or run the application with sudo.",
                 )
                 return
         else:
             command = nmap_command
 
+        self.scan_running = True
+        self.stop_requested.clear()
         self.clear_results()
 
         self.append_raw_output(
@@ -1272,7 +1287,7 @@ class NmapGUI:
             f"Command: {' '.join(command)}\n"
         )
 
-        if scan_type == "Device Discovery w/MAC" and os.geteuid() != 0:
+        if scan_type == "Device Discovery with MAC Addresses" and os.geteuid() != 0:
             self.append_raw_output(
                 "Administrator authorization will be requested through pkexec.\n"
             )
@@ -1402,7 +1417,11 @@ class NmapGUI:
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
+                start_new_session=True,
             )
+
+            if self.stop_requested.is_set():
+                self.terminate_scan_process()
 
             if self.process.stdout is not None:
                 for line in iter(
@@ -1431,9 +1450,10 @@ class NmapGUI:
 
             return_code = self.process.wait()
 
-            results = self.parse_nmap_xml(
-                xml_path
-            )
+            if return_code != 0:
+                results = {"devices": [], "ports": []}
+            else:
+                results = self.parse_nmap_xml(xml_path)
 
             self.output_queue.put(
                 (
@@ -1484,10 +1504,7 @@ class NmapGUI:
         ports: list[dict[str, str]] = []
 
         if not os.path.exists(xml_path):
-            return {
-                "devices": devices,
-                "ports": ports,
-            }
+            raise RuntimeError("Nmap did not produce a results file.")
 
         try:
             tree = ET.parse(xml_path)
@@ -1596,12 +1613,7 @@ class NmapGUI:
                     )
 
         except ET.ParseError as error:
-            self.output_queue.put(
-                (
-                    "raw_output",
-                    f"\nCould not parse Nmap XML: {error}\n",
-                )
-            )
+            raise RuntimeError(f"Could not read Nmap results: {error}") from error
 
         devices.sort(
             key=lambda device:
@@ -1918,6 +1930,7 @@ class NmapGUI:
         )
 
     def restore_scan_controls(self) -> None:
+        self.scan_running = False
         self.scan_button.config(
             state=tk.NORMAL
         )
@@ -1980,18 +1993,25 @@ class NmapGUI:
                 ),
             )
 
-    def stop_scan(self) -> None:
-        if self.process is None:
+    def terminate_scan_process(self) -> None:
+        process = self.process
+        if process is None or process.poll() is not None:
             return
-
-        self.status_var.set(
-            "Stopping scan..."
-        )
-
         try:
-            self.process.terminate()
+            os.killpg(process.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
+        except PermissionError:
+            self.output_queue.put(("raw_output", "\nUnable to stop the administrator process. Wait for it to finish.\n"))
+
+    def stop_scan(self) -> None:
+        if not self.scan_running:
+            return
+        self.stop_requested.set()
+        self.stop_activity_indicator()
+        self.status_var.set("Stopping scan...")
+        self.stop_button.config(state=tk.DISABLED)
+        self.terminate_scan_process()
 
     def on_device_double_click(
         self,
@@ -2242,7 +2262,7 @@ class NmapGUI:
             self.device_tree
         )
 
-        if self.last_completed_scan_type == "Device Discovery w/MAC":
+        if self.last_completed_scan_type == "Device Discovery with MAC Addresses":
             headings = [
                 "IP Address",
                 "Hostname",
@@ -2446,8 +2466,14 @@ class NmapGUI:
         self.current_xml_path = None
         self.current_temp_dir = None
 
+    def close_when_stopped(self) -> None:
+        if self.scan_running:
+            self.root.after(100, self.close_when_stopped)
+        else:
+            self.root.destroy()
+
     def close_application(self) -> None:
-        if self.process is not None:
+        if self.scan_running:
             should_close = messagebox.askyesno(
                 "Scan Running",
                 "A scan is currently running. Stop it and exit?",
@@ -2456,10 +2482,9 @@ class NmapGUI:
             if not should_close:
                 return
 
-            try:
-                self.process.terminate()
-            except ProcessLookupError:
-                pass
+            self.stop_scan()
+            self.root.after(100, self.close_when_stopped)
+            return
 
         self.stop_activity_indicator()
 

@@ -67,6 +67,16 @@ Some scan types may require elevated privileges. When needed, the application ma
 
 Alternatively, copying the simple-network-scanner.py file to your desktop, or another location and then right clicking the file and choosing **Run as Application** will open the application. (This has only been tested to work on Zorin OS at this time)
 
+## Desktop icon and applications menu
+
+From the extracted folder, run:
+
+```bash
+python3 install.py
+```
+
+This installs the app in your user data folder (normally `~/.local/share/simple-network-scanner`) and creates desktop and applications-menu launchers. No sudo is needed. If prompted, right-click the desktop icon and choose **Allow Launching**. You can then remove the extracted Downloads folder. Running the installer again updates the installed files.
+
 ## Updating the application
 
 Download the newest ZIP file from GitHub and replace the old application folder.
