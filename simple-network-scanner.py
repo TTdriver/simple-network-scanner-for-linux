@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+import base64
 from datetime import datetime
 import ipaddress
 import json
@@ -20,7 +21,7 @@ from typing import Any
 
 
 APP_VERSION = "1.1.1"
-UPDATE_VERSION_URL = "https://raw.githubusercontent.com/TTdriver/simple-network-scanner-for-linux/main/VERSION"
+UPDATE_VERSION_URL = "https://api.github.com/repos/TTdriver/simple-network-scanner-for-linux/contents/VERSION"
 DOWNLOAD_URL = "https://github.com/TTdriver/simple-network-scanner-for-linux#download-and-install"
 
 def version_tuple(value: str) -> tuple[int, ...]:
@@ -33,10 +34,11 @@ def available_update() -> str | None:
     try:
         request = urllib.request.Request(UPDATE_VERSION_URL, headers={"User-Agent": "SimpleNetworkScanner/" + APP_VERSION})
         with urllib.request.urlopen(request, timeout=5) as response:
-            remote = response.read(128).decode("ascii").strip()
+            payload = json.loads(response.read(8192).decode("utf-8"))
+            remote = base64.b64decode(payload["content"], validate=False).decode("ascii").strip()
         if version_tuple(remote) > version_tuple(APP_VERSION):
             return remote
-    except (OSError, ValueError):
+    except (OSError, ValueError, KeyError, TypeError):
         pass
     return None
 
