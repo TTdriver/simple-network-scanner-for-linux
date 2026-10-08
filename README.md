@@ -1,6 +1,6 @@
 # Simple Network Scanner for Linux
 
-Latest V1.0.0
+Latest V1.1.0
 
 A lightweight Linux graphical interface for basic network discovery and port scanning using a user-installed copy of Nmap.
 
@@ -54,22 +54,31 @@ If Nmap is installed correctly, the command will display the installed Nmap vers
 
 No pip packages are required. The application uses only Python standard-library modules.
 
-## Running the application
+## Install a clickable desktop application
 
-From inside the extracted application folder, right-click an empty area and choose **Open in Terminal**, then run:
+After extracting the download, open a terminal in the application folder and run:
+
+```bash
+python3 install.py
+```
+
+This installs the app for your user, adds it to the application menu, and creates a desktop shortcut. No administrator access is needed for installation. Double-click **Simple Network Scanner** on your desktop to open it. If Linux asks, right-click the shortcut and choose **Allow Launching**. Desktop icons must be enabled in your desktop environment to see the shortcut.
+
+The app and icon are stored in `~/.local/share/simple-network-scanner/` (or your configured `XDG_DATA_HOME`). You can move or delete the downloaded folder after installation.
+
+## Running without installation
 
 ```bash
 python3 simple-network-scanner.py
 ```
 
-Some scan types may require elevated privileges. When needed, the application may use `pkexec` and ask for your Linux password.
+Some scan types require elevated privileges. The application uses `pkexec` to request authorization when needed. Targets support IPv4 addresses, IPv4 subnets, and hostnames; IPv6 is not supported yet.
 
-
-Alternatively, copying the simple-network-scanner.py file to your desktop, or another location and then right clicking the file and choosing **Run as Application** will open the application. (This has only been tested to work on Zorin OS at this time)
+If Linux denies permission to stop an administrator scan, the app displays a warning and remains open until Nmap finishes.
 
 ## Updating the application
 
-Download the newest ZIP file from GitHub and replace the old application folder.
+Download and extract the newest ZIP file, then run `python3 install.py` again to update the installed app and shortcuts.
 
 ## Nmap notice
 
@@ -84,3 +93,11 @@ Only scan networks and systems that you own or have explicit permission to test.
 ## License
 
 This project is licensed under the GNU General Public License v3.0.
+
+## Development checks
+
+Run the standard-library tests with:
+
+```bash
+python3 -m unittest discover -s tests -v
+```

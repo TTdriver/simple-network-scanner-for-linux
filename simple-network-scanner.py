@@ -20,11 +20,15 @@ from typing import Any
 class NmapGUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Simple Network Scanner  v1.0.0")
-        self.root.geometry("1100x720")
-        self.root.minsize(850, 540)
+        self.root.title("Simple Network Scanner  v1.1.0")
+        self.root.geometry("1100x820")
+        self.root.minsize(1000, 720)
 
         self.process: subprocess.Popen[str] | None = None
+        self.scan_running = False
+        self.cancel_requested = threading.Event()
+        self.detection_running = False
+        self.detection_target = ""
         self.output_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.current_xml_path: str | None = None
         self.current_temp_dir: str | None = None
@@ -49,7 +53,7 @@ class NmapGUI:
         self.result_count_var = tk.StringVar(
             value="0 devices found"
         )
-        self.dark_mode_var = tk.BooleanVar(value=False)
+        self.dark_mode_var = tk.BooleanVar(value=True)
         self.style = ttk.Style(self.root)
 
         self.scan_options = {
@@ -97,17 +101,25 @@ class NmapGUI:
     def build_interface(self) -> None:
         main_frame = ttk.Frame(
             self.root,
-            padding=12,
+            padding=24,
         )
         main_frame.pack(
             fill=tk.BOTH,
             expand=True,
         )
 
+        header = ttk.Frame(main_frame)
+        header.pack(fill=tk.X, pady=(0, 22))
+        ttk.Label(header, text="NETWORK SCANNER", style="Eyebrow.TLabel").pack(anchor=tk.W)
+        ttk.Label(header, text="Explore your network", style="Title.TLabel").pack(anchor=tk.W, pady=(5, 4))
+        ttk.Label(header, text="Discover devices. Check open ports. Keep it simple.",
+                  style="Muted.TLabel").pack(anchor=tk.W)
+
         self.build_target_section(main_frame)
         self.build_scan_section(main_frame)
-        self.build_results_section(main_frame)
+        # Reserve the footer before packing the expanding results area.
         self.build_status_section(main_frame)
+        self.build_results_section(main_frame)
 
         self.root.bind(
             "<Control-c>",
@@ -120,16 +132,13 @@ class NmapGUI:
         self,
         parent: ttk.Frame,
     ) -> None:
-        target_frame = ttk.LabelFrame(
-            parent,
-            text="Network or Device",
-            padding=10,
-        )
+        target_frame = ttk.Frame(parent, style="Card.TFrame", padding=16)
         target_frame.pack(fill=tk.X)
 
         ttk.Label(
             target_frame,
-            text="Target:",
+            text="Target",
+            style="Card.TLabel",
         ).grid(
             row=0,
             column=0,
@@ -166,6 +175,7 @@ class NmapGUI:
         ttk.Label(
             target_frame,
             textvariable=self.interface_var,
+            style="CardMuted.TLabel",
         ).grid(
             row=1,
             column=1,
@@ -183,11 +193,7 @@ class NmapGUI:
         self,
         parent: ttk.Frame,
     ) -> None:
-        controls_frame = ttk.LabelFrame(
-            parent,
-            text="Scan",
-            padding=10,
-        )
+        controls_frame = ttk.Frame(parent, style="Card.TFrame", padding=16)
         controls_frame.pack(
             fill=tk.X,
             pady=(10, 0),
@@ -195,7 +201,8 @@ class NmapGUI:
 
         ttk.Label(
             controls_frame,
-            text="Scan type:",
+            text="Scan type",
+            style="Card.TLabel",
         ).grid(
             row=0,
             column=0,
@@ -224,6 +231,7 @@ class NmapGUI:
         description_label = ttk.Label(
             controls_frame,
             textvariable=self.scan_description_var,
+            style="CardMuted.TLabel",
             anchor=tk.W,
             justify=tk.LEFT,
         )
@@ -246,7 +254,8 @@ class NmapGUI:
 
         self.scan_button = ttk.Button(
             button_frame,
-            text="Start",
+            text="Start scan",
+            style="Accent.TButton",
             command=self.start_scan,
         )
         self.scan_button.pack(
@@ -352,6 +361,7 @@ class NmapGUI:
             parent
         )
         status_frame.pack(
+            side=tk.BOTTOM,
             fill=tk.X,
             pady=(8, 0),
         )
@@ -391,28 +401,29 @@ class NmapGUI:
 
         if dark:
             colors = {
-                "background": "#202124",
-                "panel": "#292a2d",
-                "field": "#303134",
-                "text": "#e8eaed",
-                "muted": "#bdc1c6",
-                "border": "#5f6368",
-                "selected": "#4c6f91",
+                "background": "#292b30",
+                "panel": "#35383e",
+                "field": "#303238",
+                "text": "#e9eaec",
+                "muted": "#b7bac2",
+                "border": "#858b96",
+                "selected": "#2563eb",
                 "selected_text": "#ffffff",
             }
         else:
             colors = {
-                "background": "#f3f3f3",
-                "panel": "#f3f3f3",
+                "background": "#eef0f3",
+                "panel": "#eef0f3",
                 "field": "#ffffff",
-                "text": "#202124",
-                "muted": "#5f6368",
-                "border": "#b8b8b8",
-                "selected": "#3478c7",
+                "text": "#292b30",
+                "muted": "#858b96",
+                "border": "#a4aab3",
+                "selected": "#2563eb",
                 "selected_text": "#ffffff",
             }
 
         self.root.configure(background=colors["background"])
+        self.root.option_add("*Font", ("DejaVu Sans", 10))
 
         self.style.configure(
             ".",
@@ -423,6 +434,7 @@ class NmapGUI:
             lightcolor=colors["border"],
             darkcolor=colors["border"],
             troughcolor=colors["panel"],
+            font=("DejaVu Sans", 10),
         )
         self.style.configure(
             "TFrame",
@@ -552,6 +564,41 @@ class NmapGUI:
             bordercolor=colors["border"],
             arrowcolor=colors["text"],
         )
+
+        # Spacious, flat surfaces keep the standard-library UI uncluttered.
+        card = colors["panel"] if dark else "#ffffff"
+        self.style.configure("Card.TFrame", background=card)
+        self.style.configure("Card.TLabel", background=card, font=("DejaVu Sans", 10, "bold"))
+        self.style.configure("CardMuted.TLabel", background=card, foreground=colors["muted"])
+        self.style.configure("Title.TLabel", font=("DejaVu Sans", 25, "bold"))
+        self.style.configure("Eyebrow.TLabel", foreground="#6e9eff" if dark else "#2563eb",
+                             font=("DejaVu Sans", 9, "bold"))
+        self.style.configure("Muted.TLabel", foreground=colors["muted"])
+        button_face = "#50555e" if dark else "#f5f6f8"
+        self.style.configure("TButton", padding=(13, 9), relief="raised", borderwidth=1,
+                             background=button_face, bordercolor=colors["border"],
+                             lightcolor=colors["border"], darkcolor=colors["border"])
+        self.style.map("TButton", background=[("disabled", card),
+                        ("pressed", "#616772" if dark else "#d4d9e1"),
+                        ("active", "#616772" if dark else "#e2e7ee")],
+                       foreground=[("disabled", colors["muted"]), ("!disabled", colors["text"])])
+        self.style.configure("Accent.TButton", background=colors["selected"],
+                             foreground="#ffffff", bordercolor=colors["selected"],
+                             lightcolor=colors["selected"], darkcolor=colors["selected"],
+                             font=("DejaVu Sans", 10, "bold"))
+        self.style.map("Accent.TButton", background=[("disabled", colors["panel"]),
+                        ("pressed", "#1d4ed8"), ("active", "#4b83f5")],
+                       foreground=[("disabled", colors["muted"]), ("!disabled", "#ffffff")])
+        self.style.configure("TEntry", padding=(10, 9), relief="flat")
+        self.style.configure("TCombobox", padding=(10, 8), relief="flat")
+        self.style.configure("TNotebook", borderwidth=0, tabmargins=(0, 8, 0, 0))
+        self.style.configure("TNotebook.Tab", padding=(18, 10), borderwidth=1)
+        self.style.map("TNotebook.Tab", background=[("selected", "#ffffff" if not dark else "#50555e"),
+                        ("active", "#e2e7ee" if not dark else "#616772")])
+        self.style.map("TNotebook.Tab", foreground=[("selected", "#6e9eff" if dark else "#2563eb")])
+        self.style.configure("Treeview", rowheight=36, borderwidth=0, relief="flat")
+        self.style.configure("Treeview.Heading", padding=(10, 10), relief="flat",
+                             font=("DejaVu Sans", 9, "bold"))
 
         # Tk text widgets are not controlled by ttk.Style.
         if hasattr(self, "raw_output_text"):
@@ -998,9 +1045,11 @@ class NmapGUI:
         )
 
     def detect_local_network(self) -> None:
-        if self.process is not None:
+        if self.scan_running or self.detection_running:
             return
 
+        self.detection_running = True
+        self.detection_target = self.target_var.get()
         self.interface_var.set(
             "Detecting local network..."
         )
@@ -1037,6 +1086,7 @@ class NmapGUI:
                 capture_output=True,
                 text=True,
                 check=True,
+                timeout=10,
             )
 
             routes = json.loads(
@@ -1072,6 +1122,7 @@ class NmapGUI:
                 capture_output=True,
                 text=True,
                 check=True,
+                timeout=10,
             )
 
             interface_data = json.loads(
@@ -1130,6 +1181,7 @@ class NmapGUI:
 
         except (
             subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
             json.JSONDecodeError,
             RuntimeError,
             ValueError,
@@ -1159,17 +1211,12 @@ class NmapGUI:
             return False
 
         try:
-            ipaddress.ip_address(target)
-            return True
+            return ipaddress.ip_address(target).version == 4
         except ValueError:
             pass
 
         try:
-            ipaddress.ip_network(
-                target,
-                strict=False,
-            )
-            return True
+            return ipaddress.ip_network(target, strict=False).version == 4
         except ValueError:
             pass
 
@@ -1186,7 +1233,7 @@ class NmapGUI:
         )
 
     def start_scan(self) -> None:
-        if self.process is not None:
+        if self.scan_running:
             messagebox.showinfo(
                 "Scan Running",
                 "A scan is already running.",
@@ -1207,7 +1254,8 @@ class NmapGUI:
         if not self.validate_target(target):
             messagebox.showerror(
                 "Invalid Target",
-                "Enter a valid IP address, hostname, or subnet.\n\n"
+                "Enter an IPv4 address, hostname, or IPv4 subnet.\n"
+                "IPv6 is not supported yet.\n\n"
                 "Examples:\n"
                 "192.168.1.10\n"
                 "192.168.1.0/24\n"
@@ -1222,13 +1270,17 @@ class NmapGUI:
             ["-sn"],
         )
 
-        self.current_temp_dir = tempfile.mkdtemp(
-            prefix="simple-network-scanner-"
-        )
-        self.current_xml_path = os.path.join(
-            self.current_temp_dir,
-            "scan.xml",
-        )
+        try:
+            self.current_temp_dir = tempfile.mkdtemp(prefix="simple-network-scanner-")
+            self.current_xml_path = os.path.join(self.current_temp_dir, "scan.xml")
+            # Keep ownership/read access when pkexec runs Nmap with a restrictive umask.
+            with open(self.current_xml_path, "x", encoding="utf-8"):
+                pass
+            os.chmod(self.current_xml_path, 0o600)
+        except OSError as error:
+            self.cleanup_temp_scan_files()
+            messagebox.showerror("Scan Failed", f"Could not create temporary results file:\n{error}")
+            return
 
         nmap_path = shutil.which("nmap") or "/usr/bin/nmap"
 
@@ -1258,6 +1310,8 @@ class NmapGUI:
         else:
             command = nmap_command
 
+        self.scan_running = True
+        self.cancel_requested.clear()
         self.clear_results()
 
         self.append_raw_output(
@@ -1363,10 +1417,13 @@ class NmapGUI:
 
         self.activity_frame += 1
 
-        status = (
-            f"{spinner} Scanning {self.active_target} "
-            f"— {minutes:02d}:{seconds:02d}"
-        )
+        if self.cancel_requested.is_set():
+            status = "Stopping scan..."
+        else:
+            status = (
+                f"{spinner} Scanning {self.active_target} "
+                f"— {minutes:02d}:{seconds:02d}"
+            )
 
         self.status_var.set(status)
 
@@ -1396,7 +1453,7 @@ class NmapGUI:
         scan_type: str,
     ) -> None:
         try:
-            self.process = subprocess.Popen(
+            process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -1404,9 +1461,13 @@ class NmapGUI:
                 bufsize=1,
             )
 
-            if self.process.stdout is not None:
+            self.process = process
+            if self.cancel_requested.is_set():
+                self.request_process_stop(process)
+
+            if process.stdout is not None:
                 for line in iter(
-                    self.process.stdout.readline,
+                    process.stdout.readline,
                     "",
                 ):
                     self.output_queue.put(
@@ -1429,52 +1490,33 @@ class NmapGUI:
                             )
                         )
 
-            return_code = self.process.wait()
+            return_code = process.wait()
+            if self.cancel_requested.is_set():
+                results = {"devices": [], "ports": []}
+                return_code = -15
+            elif return_code != 0:
+                results = {"devices": [], "ports": []}
+            else:
+                results = self.parse_nmap_xml(xml_path)
 
-            results = self.parse_nmap_xml(
-                xml_path
-            )
-
-            self.output_queue.put(
-                (
-                    "scan_complete",
-                    {
-                        "return_code": return_code,
-                        "scan_type": scan_type,
-                        "devices": results["devices"],
-                        "ports": results["ports"],
-                    },
-                )
-            )
-
+            outcome = ("scan_complete", {
+                "return_code": return_code,
+                "scan_type": scan_type,
+                "devices": results["devices"],
+                "ports": results["ports"],
+            })
         except FileNotFoundError:
-            self.output_queue.put(
-                (
-                    "scan_error",
-                    "Nmap could not be found.",
-                )
-            )
-
+            outcome = ("scan_error", "Nmap could not be found.")
         except PermissionError:
-            self.output_queue.put(
-                (
-                    "scan_error",
-                    "Permission was denied while starting Nmap.",
-                )
-            )
-
+            outcome = ("scan_error", "Permission was denied while running Nmap or reading results.")
         except Exception as error:
-            self.output_queue.put(
-                (
-                    "scan_error",
-                    f"Unexpected error: {error}",
-                )
-            )
-
+            outcome = ("scan_error", f"Could not complete scan: {error}")
         finally:
             self.process = None
-
             self.cleanup_temp_scan_files()
+
+        # Release the UI only after worker resources have been cleaned up.
+        self.output_queue.put(outcome)
 
     def parse_nmap_xml(
         self,
@@ -1484,10 +1526,7 @@ class NmapGUI:
         ports: list[dict[str, str]] = []
 
         if not os.path.exists(xml_path):
-            return {
-                "devices": devices,
-                "ports": ports,
-            }
+            raise RuntimeError("Nmap did not produce an XML results file.")
 
         try:
             tree = ET.parse(xml_path)
@@ -1596,12 +1635,7 @@ class NmapGUI:
                     )
 
         except ET.ParseError as error:
-            self.output_queue.put(
-                (
-                    "raw_output",
-                    f"\nCould not parse Nmap XML: {error}\n",
-                )
-            )
+            raise RuntimeError(f"Could not read Nmap results: {error}") from error
 
         devices.sort(
             key=lambda device:
@@ -1748,6 +1782,9 @@ class NmapGUI:
                         data
                     )
 
+                elif message_type == "stop_failed":
+                    messagebox.showwarning("Could Not Stop Scan", str(data))
+
                 elif message_type == "scan_error":
                     self.scan_failed(
                         str(data)
@@ -1784,7 +1821,9 @@ class NmapGUI:
         address = network_data["address"]
         network = network_data["network"]
 
-        self.target_var.set(network)
+        self.detection_running = False
+        if not self.scan_running and self.target_var.get() == self.detection_target:
+            self.target_var.set(network)
         self.local_host_ip = address
 
         self.interface_var.set(
@@ -1793,21 +1832,20 @@ class NmapGUI:
             f"Network: {network}"
         )
 
-        self.status_var.set(
-            f"Detected {network}"
-        )
-
-        self.detect_button.config(
-            state=tk.NORMAL
-        )
+        if not self.scan_running:
+            self.status_var.set(f"Detected {network}")
+            self.detect_button.config(state=tk.NORMAL)
 
     def network_detection_failed(
         self,
         error: str,
     ) -> None:
+        self.detection_running = False
         self.interface_var.set(
             "Automatic network detection failed"
         )
+        if self.scan_running:
+            return
 
         self.status_var.set(
             "Network detection failed"
@@ -1918,6 +1956,7 @@ class NmapGUI:
         )
 
     def restore_scan_controls(self) -> None:
+        self.scan_running = False
         self.scan_button.config(
             state=tk.NORMAL
         )
@@ -1935,7 +1974,7 @@ class NmapGUI:
         )
 
         self.detect_button.config(
-            state=tk.NORMAL
+            state=tk.DISABLED if self.detection_running else tk.NORMAL
         )
 
     def populate_device_table(
@@ -1980,18 +2019,29 @@ class NmapGUI:
                 ),
             )
 
-    def stop_scan(self) -> None:
-        if self.process is None:
-            return
-
-        self.status_var.set(
-            "Stopping scan..."
-        )
-
+    def request_process_stop(self, process: subprocess.Popen[str]) -> None:
         try:
-            self.process.terminate()
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
         except ProcessLookupError:
             pass
+        except PermissionError:
+            self.cancel_requested.clear()
+            self.output_queue.put(("stop_failed", "Linux denied permission to stop the administrator scan. "
+                                   "The scan will continue until Nmap finishes."))
+
+    def stop_scan(self) -> None:
+        if not self.scan_running or self.cancel_requested.is_set():
+            return
+        self.cancel_requested.set()
+        self.status_var.set("Stopping scan...")
+        process = self.process
+        if process is not None:
+            threading.Thread(target=self.request_process_stop, args=(process,), daemon=True).start()
 
     def on_device_double_click(
         self,
@@ -2447,7 +2497,7 @@ class NmapGUI:
         self.current_temp_dir = None
 
     def close_application(self) -> None:
-        if self.process is not None:
+        if self.scan_running:
             should_close = messagebox.askyesno(
                 "Scan Running",
                 "A scan is currently running. Stop it and exit?",
@@ -2456,15 +2506,23 @@ class NmapGUI:
             if not should_close:
                 return
 
-            try:
-                self.process.terminate()
-            except ProcessLookupError:
-                pass
+            self.stop_scan()
+            self.root.after(100, self.close_when_stopped)
+            return
 
         self.stop_activity_indicator()
 
         self.cleanup_temp_scan_files()
         self.root.destroy()
+
+    def close_when_stopped(self) -> None:
+        if not self.scan_running:
+            self.close_application()
+        elif not self.cancel_requested.is_set():
+            # Permission was denied; leave the app open so results remain accessible.
+            return
+        else:
+            self.root.after(100, self.close_when_stopped)
 
 
 def main() -> None:
