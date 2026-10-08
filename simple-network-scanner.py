@@ -11,16 +11,39 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.request
+import webbrowser
 import tkinter as tk
 import xml.etree.ElementTree as ET
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from typing import Any
 
 
+APP_VERSION = "1.1.1"
+UPDATE_VERSION_URL = "https://raw.githubusercontent.com/TTdriver/simple-network-scanner-for-linux/main/VERSION"
+DOWNLOAD_URL = "https://github.com/TTdriver/simple-network-scanner-for-linux#download-and-install"
+
+def version_tuple(value: str) -> tuple[int, ...]:
+    parts = value.strip().split(".")
+    if len(parts) != 3 or any(not part.isascii() or not part.isdigit() for part in parts):
+        raise ValueError("Invalid version")
+    return tuple(int(part) for part in parts)
+
+def available_update() -> str | None:
+    try:
+        request = urllib.request.Request(UPDATE_VERSION_URL, headers={"User-Agent": "SimpleNetworkScanner/" + APP_VERSION})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            remote = response.read(128).decode("ascii").strip()
+        if version_tuple(remote) > version_tuple(APP_VERSION):
+            return remote
+    except (OSError, ValueError):
+        pass
+    return None
+
 class NmapGUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Simple Network Scanner  v1.1.0")
+        self.root.title(f"Simple Network Scanner  v{APP_VERSION}")
         self.root.geometry("1100x820")
         self.root.minsize(1000, 720)
 
@@ -97,6 +120,13 @@ class NmapGUI:
             250,
             self.detect_local_network,
         )
+
+        threading.Thread(target=self.check_update, daemon=True).start()
+
+    def check_update(self) -> None:
+        version = available_update()
+        if version:
+            self.output_queue.put(("update_available", version))
 
     def build_interface(self) -> None:
         main_frame = ttk.Frame(
@@ -381,6 +411,8 @@ class NmapGUI:
             padx=(20, 0),
         )
 
+        self.update_link = ttk.Label(status_frame, text="", style="Muted.TLabel")
+        self.update_link.pack(side=tk.RIGHT, padx=(16, 0))
         self.dark_mode_toggle = ttk.Checkbutton(
             status_frame,
             text="Dark Mode",
@@ -1762,6 +1794,10 @@ class NmapGUI:
                     self.append_raw_output(
                         str(data)
                     )
+
+                elif message_type == "update_available":
+                    self.update_link.configure(text=f"Update available · v{data} ↗", cursor="hand2")
+                    self.update_link.bind("<Button-1>", lambda _event: webbrowser.open(DOWNLOAD_URL))
 
                 elif message_type == "scan_progress":
                     # Detailed Nmap progress remains in Raw Output only.

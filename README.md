@@ -1,10 +1,10 @@
 # Simple Network Scanner for Linux
 
-**Version 1.1.0** · A simple Linux desktop app for discovering network devices and checking open ports.
+**Version 1.1.1** · A simple Linux desktop app for discovering network devices and checking open ports.
 
 ## Download and install
 
-**[Download Simple Network Scanner v1.1.0 (.deb)](https://github.com/TTdriver/simple-network-scanner-for-linux/raw/refs/heads/main/downloads/simple-network-scanner_1.1.0_all.deb)**
+**[Download Simple Network Scanner v1.1.1 (.deb)](https://github.com/TTdriver/simple-network-scanner-for-linux/raw/refs/heads/main/downloads/simple-network-scanner_1.1.1_all.deb)**
 
 For Zorin OS 18, Ubuntu 24.04, Linux Mint 22, and compatible Debian-based systems with Python 3.10 or newer:
 
@@ -18,7 +18,7 @@ The package lists Python, Tkinter, Nmap, iproute2, and pkexec as dependencies. Y
 If double-clicking opens an archive viewer, right-click the file and choose **Open With → Software Install** (the name varies by desktop). If your system has no graphical package installer, open a terminal in Downloads and run:
 
 ```bash
-sudo apt install ./simple-network-scanner_1.1.0_all.deb
+sudo apt install ./simple-network-scanner_1.1.1_all.deb
 ```
 
 The package has been built and inspected on Zorin OS 18.1; other distributions have not been tested directly.
@@ -81,3 +81,9 @@ This project is licensed under the GNU General Public License v3.0. See [LICENSE
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## Update notifications
+
+The app checks GitHub once at launch in the background, with a five-second timeout. A small muted link appears in the bottom-right corner only when a newer version is available. Clicking it opens the download instructions. No popups, repeated checks, or automatic installations occur. Offline failures stay silent.
+
+For maintainers: update `APP_VERSION`, the root `VERSION` file, and the downloadable installer together when publishing an update. Versions use `major.minor.patch`.

@@ -2,6 +2,11 @@
 
 All notable changes to Simple Network Scanner will be documented here.
 
+## [1.1.1] - 2026-10-07
+
+- Add a silent background update check once at launch.
+- Show a small corner link only when a newer version is available.
+
 ## [1.1.0] - 2026-10-07
 
 - Provide a downloadable Debian package with an application-menu entry and declared system dependencies.
