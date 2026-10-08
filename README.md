@@ -1,102 +1,82 @@
 # Simple Network Scanner for Linux
 
-Latest V1.1.0
+**Version 1.1.0** · A simple Linux desktop app for discovering network devices and checking open ports.
 
-A lightweight Linux graphical interface for basic network discovery and port scanning using a user-installed copy of Nmap.
+## Download and install
 
-<img width="1103" height="711" alt="image" src="https://github.com/user-attachments/assets/bf0ece3e-00f4-43f9-b994-4a86cf22ce0d" />
+**[Download Simple Network Scanner v1.1.0 (.deb)](https://github.com/TTdriver/simple-network-scanner-for-linux/raw/refs/heads/main/downloads/simple-network-scanner_1.1.0_all.deb)**
 
+For Zorin OS 18, Ubuntu 24.04, Linux Mint 22, and compatible Debian-based systems with Python 3.10 or newer:
 
-## Features
+1. Download the `.deb` file using the link above. You do not need to download the source ZIP.
+2. Open your Downloads folder and double-click the file.
+3. Choose **Install** and enter your Linux password if requested.
+4. Open **Simple Network Scanner** from your application menu.
 
-- Discover devices on a local network
-- Scan ports on selected devices
-- Display IP addresses, hostnames, MAC addresses, vendors, and open ports
-- Save scan results with automatically generated filenames
-- Light and dark modes
-- Simple interface intended for home-lab users
+The package lists Python, Tkinter, Nmap, iproute2, and pkexec as dependencies. Your software installer obtains missing dependencies from your distribution's repositories. An internet connection may be needed. No pip packages or virtual environment are required.
 
-## Downloading the application
-
-1. Open this project on GitHub.
-2. Click the green **Code** button.
-3. Click **Download ZIP**.
-4. Open your Downloads folder.
-5. Extract the ZIP file.
-6. Open the extracted folder.
-
-You can also extract it from a terminal:
+If double-clicking opens an archive viewer, right-click the file and choose **Open With → Software Install** (the name varies by desktop). If your system has no graphical package installer, open a terminal in Downloads and run:
 
 ```bash
-cd ~/Downloads
-unzip simple-network-scanner-for-linux-main.zip
-cd simple-network-scanner-for-linux-main
+sudo apt install ./simple-network-scanner_1.1.0_all.deb
 ```
 
-## Requirements
+The package has been built and inspected on Zorin OS 18.1; other distributions have not been tested directly.
 
-This application depends on **Nmap** to perform network scans. Nmap is not included with this project and must be installed separately.
+## Add a desktop shortcut
 
-On Debian, Ubuntu, Zorin OS, Linux Mint, and other Debian-based distributions, install the required packages with:
+The `.deb` adds an application-menu entry. Use your desktop's **Add to Desktop** or **Create Shortcut** action on that entry, if available. Desktop icons must be enabled. If prompted, right-click the shortcut and choose **Allow Launching**.
 
-```bash
-sudo apt update
-sudo apt install python3 python3-tk nmap iproute2 policykit-1 unzip
-```
+## Using the app
 
-Verify that Nmap is installed:
+- **Detect Network** fills in your local IPv4 subnet, or enter an IP address, hostname, or subnet yourself.
+- Choose **Device Discovery** to find devices without requesting administrator access.
+- Choose **Device Discovery w/MAC** to request administrator access and retrieve available local MAC/vendor information.
+- Choose **Quick Port Scan** or **Standard Port Scan** to check open ports.
+- Click **Start scan**. **Stop** requests cancellation.
+- Use **Copy IP**, **Save**, and the **Devices**, **Ports**, and **Raw Output** tabs as needed.
+- Use **Dark Mode** to switch between charcoal and light appearances.
 
-```bash
-nmap --version
-```
-
-If Nmap is installed correctly, the command will display the installed Nmap version.
-
-No pip packages are required. The application uses only Python standard-library modules.
-
-## Install a clickable desktop application
-
-After extracting the download, open a terminal in the application folder and run:
-
-```bash
-python3 install.py
-```
-
-This installs the app for your user, adds it to the application menu, and creates a desktop shortcut. No administrator access is needed for installation. Double-click **Simple Network Scanner** on your desktop to open it. If Linux asks, right-click the shortcut and choose **Allow Launching**. Desktop icons must be enabled in your desktop environment to see the shortcut.
-
-The app and icon are stored in `~/.local/share/simple-network-scanner/` (or your configured `XDG_DATA_HOME`). You can move or delete the downloaded folder after installation.
-
-## Running without installation
-
-```bash
-python3 simple-network-scanner.py
-```
-
-Some scan types require elevated privileges. The application uses `pkexec` to request authorization when needed. Targets support IPv4 addresses, IPv4 subnets, and hostnames; IPv6 is not supported yet.
+Changing scan types clears previous results. Save anything you want to keep first. IPv6 is not supported yet. MAC information is generally available only on the local network, and a device that does not respond to discovery may still be online.
 
 If Linux denies permission to stop an administrator scan, the app displays a warning and remains open until Nmap finishes.
 
-## Updating the application
+## Updating or removing
 
-Download and extract the newest ZIP file, then run `python3 install.py` again to update the installed app and shortcuts.
+To update, download the newer `.deb`, close the app, and install it the same way. Updates are manual. To remove it, use your software manager or `sudo apt remove simple-network-scanner`.
 
-## Nmap notice
+### If you previously used `install.py`
 
-Simple Network Scanner for Linux is an independent graphical frontend for Nmap.
+The older installer creates a separate per-user copy that can override the packaged application. Before switching to the `.deb`, remove its **Simple Network Scanner** desktop shortcut and these two items from your home folder (show hidden files in your file manager):
 
-This project does not include, distribute, or automatically install Nmap. Users must install Nmap separately through their Linux distribution.
+- `~/.local/share/applications/simple-network-scanner.desktop`
+- `~/.local/share/simple-network-scanner/`
+
+If you configured `XDG_DATA_HOME`, those items are under that directory instead. Saved scans are not stored in the application folder by default. Keep any files you saved there before removing it.
+
+Then install the `.deb` and create a new desktop shortcut from the application-menu entry.
+
+## Source-code alternative
+
+Download the repository ZIP using **Code → Download ZIP**, extract it, and install the system requirements:
+
+```bash
+sudo apt install python3 python3-tk nmap iproute2 pkexec
+```
+
+Run `python3 simple-network-scanner.py` from the extracted folder. Alternatively, `python3 install.py` installs a per-user copy with a menu entry and desktop shortcut. Use one installation method to avoid duplicate copies.
+
+## Nmap notice and license
+
+This is an independent graphical frontend for Nmap. Nmap is not bundled in the app or `.deb`; the package manager installs it separately from your distribution's repositories when needed.
 
 Nmap is a registered trademark of the Nmap Project. This project is not affiliated with, sponsored by, or endorsed by the Nmap Project.
 
 Only scan networks and systems that you own or have explicit permission to test.
 
-## License
-
-This project is licensed under the GNU General Public License v3.0.
+This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
 
 ## Development checks
-
-Run the standard-library tests with:
 
 ```bash
 python3 -m unittest discover -s tests -v

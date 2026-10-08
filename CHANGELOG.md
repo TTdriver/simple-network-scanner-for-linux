@@ -4,6 +4,9 @@ All notable changes to Simple Network Scanner will be documented here.
 
 ## [1.1.0] - 2026-10-07
 
+- Provide a downloadable Debian package with an application-menu entry and declared system dependencies.
+- Rewrite installation, update, removal, and migration instructions for desktop users.
+
 - Add a clean charcoal interface with clearly outlined buttons and light mode.
 - Add a per-user installer, application icon, menu entry, and desktop shortcut.
 - Keep the status bar visible when resizing the results area.
