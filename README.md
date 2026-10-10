@@ -87,3 +87,9 @@ python3 -m unittest discover -s tests -v
 The app checks GitHub once at launch in the background, with a five-second timeout. A small muted link appears in the bottom-right corner only when a newer version is available. Clicking it opens the download instructions. No popups, repeated checks, or automatic installations occur. Offline failures stay silent.
 
 For maintainers: update `APP_VERSION`, the root `VERSION` file, and the downloadable installer together when publishing an update. Versions use `major.minor.patch`.
+
+## Give Thanks
+
+If you’d like to say thanks by buying me a drink or helping cover AI tokens, it’s appreciated.
+
+[Give Thanks](https://thanks.kerchnerlabs.com)
